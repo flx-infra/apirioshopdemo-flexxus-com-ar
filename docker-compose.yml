@@ -1,30 +1,91 @@
 version: '3.6'
 
 services:
-  flxwebapi:
+  flexxuswebapi:
     image: fabreguesm/flxwebapi:2.8.329.5
-    hostname: apirioshopdemo-flexxus-com-ar
     networks:
-      - traefik      
+      - traefik
+      - default
+    ports:
+      - '${PORT_API}:5000'
     volumes:
       - 'node_data:/app/data/'
       - 'factura_data:/app/factura_electronica/'
-      - 'pdf_data:/app/public/pdf/'            
-    deploy:      
+      - 'pdf_data:/app/public/pdf/'
+    deploy:
+      labels:
+      - "traefik.enable=true" 
+      - "traefik.http.routers.${FQDN_NOTDOT}-http.entrypoints=web" 
+      - "traefik.http.routers.${FQDN_NOTDOT}-http.rule=Host(`${PS_DOMAIN}`)" 
+      - "traefik.http.middlewares.${FQDN_NOTDOT}-http.redirectscheme.scheme=https"
+      - "traefik.http.routers.${FQDN_NOTDOT}-https.rule=Host(`${PS_DOMAIN}`)"
+      - "traefik.http.routers.${FQDN_NOTDOT}-https.entrypoints=https"
+      - "traefik.http.routers.${FQDN_NOTDOT}-https.tls=true"
+      - "traefik.http.routers.${FQDN_NOTDOT}-https.tls.certresolver=myresolver"
+      - "traefik.http.services.${FQDN_NOTDOT}-http.loadbalancer.server.port=5000"
       placement:
-        constraints: ["${NODE}"] 
+        constraints: ["${NODE}"]
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 2.0G
+    environment:
+      - URL_HELPDESK=https://soporte-demo.flexxus.com.ar/api
+      - USER_HELPDESK=errores.flexxus@gmail.com
+      - PASS_HELPDESK=FlexxusApp2025
+      - SENDGRID_API_KEY=${SENDGRID_API_KEY}
+      - SENDGRID_EMAIL=no-responda-este-email@flexxus.com
+      - SERVICIO_HELPDESK=54
+      - FE_MODE=production
+      - FE_PASSPHRASE=123456
     logging:
       driver: loki
       options:
         loki-url: ${LOKI_URL}  
+  filebrowser:
+    image: hurlenko/filebrowser:v2.10.0
+    user: "0:0"
+    ports:
+      - 8080
+    volumes:
+      - node_data:/data
+      - factura_data:/data/factura_electronica
+      - pdf_data:/data/pdf
+      - fb_data:/data/config
+    deploy:
+      labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.${FQDN_NOTDOT}-http-fb.entrypoints=web"
+      - "traefik.http.routers.${FQDN_NOTDOT}-http-fb.rule=Host(`${PS_DOMAIN}`) && PathPrefix(`/filebrowser`) || Host(`www.${PS_DOMAIN}`) && PathPrefix(`/filebrowser`)"
+      - "traefik.http.routers.${FQDN_NOTDOT}-http-fb.middlewares=https_redirect"
+      - "traefik.http.routers.${FQDN_NOTDOT}-https-fb.rule=Host(`${PS_DOMAIN}`) && PathPrefix(`/filebrowser`) || Host(`www.${PS_DOMAIN}`) && PathPrefix(`/filebrowser`)"
+      - "traefik.http.routers.${FQDN_NOTDOT}-https-fb.entrypoints=https"
+      - "traefik.http.routers.${FQDN_NOTDOT}-https-fb.tls=true"
+      - "traefik.http.services.${FQDN_NOTDOT}-https-fb.loadbalancer.server.port=8080"
+      - "traefik.http.middlewares.https_redirect.redirectscheme.scheme=https"
+      - "traefik.http.routers.${FQDN_NOTDOT}-https-fb.middlewares=RuleGrpSlash"
+      placement:
+        constraints: ["${NODE}"]
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 128M
+    environment:
+      - FB_PASSWORD=$$2a$$10$$v174TC2HFsPfoEXMkXlrH.wpmUzGsUPpnSf.xOUp1IK1s4tndTKFy
+      - FB_BASEURL=/filebrowser/
+    restart: always
+    networks:
+      - traefik
 volumes:
   node_data:
-    name: "${SERVICE_NAME}_node-data"
+    name: "${FQDN_NOTDOT}_node-data"
   factura_data:
-    name: "${SERVICE_NAME}_factura-data"
+    name: "${FQDN_NOTDOT}_factura-data"
   pdf_data:
-    name: "${SERVICE_NAME}_pdf-data"    
+    name: "${FQDN_NOTDOT}_pdf-data"
+  fb_data:
+    name: "${FQDN_NOTDOT}_fbrowser-data"
 networks:
   traefik:
     external:
-      name: traefik
+      name: traefik-network
