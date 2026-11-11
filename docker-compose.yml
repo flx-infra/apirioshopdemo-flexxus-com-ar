@@ -6,8 +6,6 @@ services:
     networks:
       - traefik
       - default
-    ports:
-      - '${PORT_API}:5000'
     volumes:
       - 'node_data:/app/data/'
       - 'factura_data:/app/factura_electronica/'
@@ -45,8 +43,6 @@ services:
   filebrowser:
     image: hurlenko/filebrowser:v2.10.0
     user: "0:0"
-    ports:
-      - 8080
     volumes:
       - node_data:/data
       - factura_data:/data/factura_electronica
