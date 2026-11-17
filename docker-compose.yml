@@ -2,7 +2,7 @@ version: '3.6'
 
 services:
   flexxuswebapi:
-    image: fabreguesm/flxwebapi:2.8.329.5
+    image: fabreguesm/flxwebapi:2.8.339.3
     networks:
       - traefik
       - default
